@@ -17,9 +17,9 @@ x = pack $ Example 5 False True
 
 >>> x
 "Example { one = 5, two = False, three = True }"
->>> get \@"two" x
+>>> get @"two" x
 "False"
->>> set \@"three" x False
+>>> set @"three" x False
 "Example { one = 5, two = False, three = False }"
 ```
 
