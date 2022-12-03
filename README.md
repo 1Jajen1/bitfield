@@ -19,6 +19,9 @@ x = pack $ Example 5 False True
 "Example { one = 5, two = False, three = True }"
 >>> get @"two" x
 "False"
+-- Requires OverloadedRecordDot
+>>> x.two
+"False"
 >>> set @"three" x False
 "Example { one = 5, two = False, three = False }"
 ```
