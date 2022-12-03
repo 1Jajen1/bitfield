@@ -107,20 +107,15 @@ class GPackBitfield rep (f :: p -> Type) where
   unpackI :: forall x . Proxy f -> Int -> rep -> (Int, f x)
   packI :: forall x . Proxy f -> Int -> rep -> f x -> (Int, rep)
 
-instance GPackBitfield r f => GPackBitfield r (D1 m f) where
+instance GPackBitfield r f => GPackBitfield r (M1 s m f) where
   unpackI _ off b = M1 <$> unpackI (Proxy @f) off b
   {-# INLINE unpackI #-}
   packI _ off r (M1 f) = packI (Proxy @f) off r f
   {-# INLINE packI #-}
-instance GPackBitfield r f => GPackBitfield r (C1 m f) where
-  unpackI _ off b = M1 <$> unpackI (Proxy @f) off b
+instance (HasFixedBitSize a, AsRep rep a) => GPackBitfield rep (K1 c a) where
+  unpackI _ off r = (fixedBitSize @a + off, K1 $ fromRep r off)
   {-# INLINE unpackI #-}
-  packI _ off r (M1 f) = packI (Proxy @f) off r f
-  {-# INLINE packI #-}
-instance (HasFixedBitSize a, AsRep rep a) => GPackBitfield rep (S1 m (K1 c a)) where
-  unpackI _ off r = (fixedBitSize @a + off, M1 . K1 $ fromRep r off)
-  {-# INLINE unpackI #-}
-  packI _ off r (M1 (K1 a)) = (fixedBitSize @a + off, toRep r a off)
+  packI _ off r (K1 a) = (fixedBitSize @a + off, toRep r a off)
   {-# INLINE packI #-}
 instance (GPackBitfield r f, GPackBitfield r g) => GPackBitfield r (f :*: g) where
   unpackI _ off rep =
