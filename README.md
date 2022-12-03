@@ -1,7 +1,18 @@
-# bitfield
+<h1 align="center"> bitfield </h1>
 
-[![Hackage](https://img.shields.io/hackage/v/bitfield.svg?logo=haskell)](https://hackage.haskell.org/package/bitfield)
-[![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<p align="center">
+<a href="https://github.com/1Jajen1/bitfield/actions">
+  <img src="https://img.shields.io/github/workflow/status/1Jajen1/bitfield/CI?style=flat-square" alt="CI badge" />
+</a>
+<a href="https://haskell.org">
+  <img src="https://img.shields.io/badge/Made%20in-Haskell-%235e5086?logo=haskell&style=flat-square" alt="made with Haskell"/>
+</a>
+<a href="https://hackage.haskell.org/package/bitfield">
+  <img src="https://img.shields.io/hackage/v/bitfield?style=flat-square" alt="Hackage" />
+</a>
+</p>
+
+## Description
 
 Generic and easy to use bitfields. Pack and unpack records into compact representations.
 
