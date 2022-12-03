@@ -1,17 +1,18 @@
 cabal-version:       2.4
 name:                bitfield
 version:             0.0.0.0
-synopsis:            Easy to use haskell bitfields
-description:         Easy to use haskell bitfields
+synopsis:            Generic and easy to use haskell bitfields
+description:         Generic and easy to use haskell bitfields. Allows packing and modifying datatypes in a compact representation. See `README.md` or 'Data.Bitfield' for documentation.
 license:             MIT
 license-file:        LICENSE
 author:              Jannis
 maintainer:          Jannis <overesch.jannis@gmail.com>
 copyright:           2022 Jannis
-category:            Data
+category:            Data, Bit
 build-type:          Simple
-extra-doc-files:     README.md
+extra-source-files:  README.md
                      CHANGELOG.md
+                     LICENSE
 tested-with:        
   GHC ==8.8.4 || ==8.10.7 || ==9.2.5 || ==9.4.3
 

@@ -26,7 +26,7 @@ x = pack $ Example 5 False True
 "Example { one = 5, two = False, three = False }"
 ```
 
-`x` is represented using `Word16` instead of `Example` and thus takes far less memory.
+`x` is represented using `Word16` instead of the full heap object `Example` and thus takes far less memory.
 
 ## Custom fields
 
