@@ -33,7 +33,6 @@ library
   hs-source-dirs:      src
   exposed-modules:     Data.Bitfield
                      , Data.Bitfield.Internal
-                     , Data.Width
 test-suite bitfield-test
   import:              common-options
   type:                exitcode-stdio-1.0

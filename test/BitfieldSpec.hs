@@ -6,6 +6,9 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 #endif
 module BitfieldSpec where
 
@@ -56,3 +59,22 @@ spec = do
   
   it "unpack . pack = id" $ forAllValid $ \(t :: Example) ->
     t === (unpack $ pack @Word32 t)
+
+data AEnum = A1 | A2 | A3 | A4
+  deriving stock (Eq, Show, Enum, Generic)
+  deriving (HasFixedBitSize, AsRep r) via GenericEnum AEnum
+
+data ATest = ATest { a1 :: AEnum, b1 :: AEnum, c1 :: AEnum, d1 :: Bool, e1 :: Bool } deriving stock (Eq, Show, Generic)
+
+-- AText fits into exactly 8 bits. This verifies that it compiles. Adding another constructor to AEnum changes its size and should not compile
+compileTestAEnum :: Bitfield Word8 ATest
+compileTestAEnum = pack $ ATest A1 A1 A1 True True
+
+newtype SmallInt = SmallInt Int
+  deriving newtype (Show, Eq)
+  deriving (HasFixedBitSize, AsRep r) via (ViaIntegral 5 Int)
+
+data AnotherTest = AnotherTest { a2 :: Bitfield Word8 ATest, b2 :: Bool, c2 :: SmallInt } deriving stock (Eq, Show, Generic)
+
+compileAnotherTest :: Bitfield Word16 AnotherTest
+compileAnotherTest = pack $ AnotherTest { a2 = pack $ ATest A1 A1 A1 True True, b2 = True, c2 = SmallInt 5 }

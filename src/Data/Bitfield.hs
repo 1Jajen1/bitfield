@@ -46,12 +46,46 @@
 -- True
 -- @
 -- 
+-- 'Bitfield' supports a variety of field types as long as those implement 'HasFixedBitSize' and 'AsRep'.
+-- These instances are usually derived via 'GenericEnum' or 'ViaIntegral'.
+--
+-- @
+-- data AEnum = A1 | A2 | A3
+--   deriving stock (Generic, Enum)
+--   deriving (HasFixedBitSize, AsRep r) via (GenericEnum AEnum)
+--
+-- newtype SmallInt = SmallInt Int
+--   deriving (HasFixedBitSize, AsRep r) via (ViaIntegral 5 Int)
+--
+-- data Example = Example { a :: AEnum, b :: SmallInt }
+--
+-- x :: Bitfield Word8 Example
+-- x = pack $ Example A2 (SmallInt 3)
+-- @
+--
+-- It is also possible to nest 'Bitfield's, but they are not unpacked, the representation of the nested field is used directly.
+--
+-- @
+-- data Nested = Nested { a :: Bool, b :: Bool }
+-- data Example = Example { one :: Bitfield Word8 Nested, other :: Bool }
+--
+-- -- This bitfield requires at least 9 bits because the field "one" requires 8 bits.
+-- x :: Bitfield Word16 Example
+-- x = Pack $ Example (pack $ Nested True True) False
+-- @
 
 module Data.Bitfield (
+-- * Bitfield
   Bitfield(Bitfield)
+, unwrap
+-- * General use
 , get, set
 , pack, unpack
-, unwrap
+-- * Custom fields
+, HasFixedBitSize(..)
+, AsRep(..)
+, ViaIntegral(..)
+, GenericEnum(..)
 ) where
 
 import Data.Bitfield.Internal

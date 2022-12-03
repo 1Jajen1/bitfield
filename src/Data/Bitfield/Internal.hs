@@ -24,6 +24,7 @@
 #-}
 {-# OPTIONS_HADDOCK not-home #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
 -- |
 -- Module      : Data.Bitfield.Internal
 -- Copyright   : (c) Jannis Overesch 2022-2022
@@ -34,9 +35,10 @@ module Data.Bitfield.Internal (
 , unwrap
 , get, set
 , pack, unpack
+, HasFixedBitSize(..)
 , AsRep(..)
 , ViaIntegral(..)
-, BitSize
+, GenericEnum(..)
 , Fits
 ) where
 
@@ -60,12 +62,12 @@ import GHC.TypeLits as Nat
 -- are written with the implicit assumption of a representation with an 'Integral' and 'Bits' instance.
 -- The type to represent is also assumed to have a `Generic` instance and be a single constructor with named fields.
 -- 
--- @a@'s fields are also required to have an instance of the internal class 'AsRep'. This is provided for the most common
+-- @a@'s fields are also required to have an instance of 'AsRep' and 'FiniteBits'. This is provided for the most common
 -- types ('Int'/'Word' (and variants) and 'Bool'). 
 newtype Bitfield (rep :: Type) (a :: Type) = Bitfield rep
   deriving newtype Eq
 
--- | Access the underlying representation of the bitfield
+-- | Access the underlying representation of the 'Bitfield'
 unwrap :: Bitfield rep a -> rep
 unwrap (Bitfield rep) = rep
 {-# INLINE unwrap #-}
@@ -93,8 +95,8 @@ unpack (Bitfield b) = case unpackI (Proxy @(Rep a)) 0 b of (_, a) -> to a
 --
 -- Beware that updates should be done with 'set', as 'pack' will recreate the entire 'Bitfield'
 -- from scratch. The following will most likely *not* be optimised: @pack $ (unpack bitfield) { example = True }@
-pack :: forall rep a . (Fits rep a, Generic a, Num rep, GPackBitfield rep (Rep a)) => a -> Bitfield rep a
-pack a = case packI (Proxy @(Rep a)) 0 0 (from a) of (_, b) -> Bitfield b
+pack :: forall rep a . (Fits rep a, Generic a, Bits rep, GPackBitfield rep (Rep a)) => a -> Bitfield rep a
+pack a = case packI (Proxy @(Rep a)) 0 zeroBits (from a) of (_, b) -> Bitfield b
 {-# INLINE pack #-}
 
 instance (Fits rep a, Generic a, GPackBitfield rep (Rep a), Show a) => Show (Bitfield rep a) where
@@ -115,10 +117,10 @@ instance GPackBitfield r f => GPackBitfield r (C1 m f) where
   {-# INLINE unpackI #-}
   packI _ off r (M1 f) = packI (Proxy @f) off r f
   {-# INLINE packI #-}
-instance (FiniteBits a, AsRep rep a) => GPackBitfield rep (S1 m (K1 c a)) where
-  unpackI _ off r = (finiteBitSize (undefined :: a) + off, M1 . K1 $ fromRep r off)
+instance (HasFixedBitSize a, AsRep rep a) => GPackBitfield rep (S1 m (K1 c a)) where
+  unpackI _ off r = (fixedBitSize @a + off, M1 . K1 $ fromRep r off)
   {-# INLINE unpackI #-}
-  packI _ off r (M1 (K1 a)) = (finiteBitSize (undefined :: a) + off, toRep r a off)
+  packI _ off r (M1 (K1 a)) = (fixedBitSize @a + off, toRep r a off)
   {-# INLINE packI #-}
 instance (GPackBitfield r f, GPackBitfield r g) => GPackBitfield r (f :*: g) where
   unpackI _ off rep =
@@ -130,7 +132,7 @@ instance (GPackBitfield r f, GPackBitfield r g) => GPackBitfield r (f :*: g) whe
     case packI (Proxy @f) off rep l of
       (off', rep') -> packI (Proxy @g) off' rep' r
   {-# INLINE packI #-}
---
+
 class GOffset (name :: Symbol) (f :: p -> Type) where
   offset :: Proxy name -> Proxy f -> Either Int Int
 
@@ -150,8 +152,8 @@ instance (GOffset name f, GOffset name g) => GOffset name (f :*: g) where
 instance GOffset name (S1 (MetaSel (Just name) su ss ds) (K1 c a)) where
   offset _ _ = Right 0
   {-# INLINE offset #-}
-instance {-# OVERLAPS #-} FiniteBits a => GOffset name (S1 m (K1 c a)) where
-  offset _ _ = Left $ finiteBitSize (undefined :: a)
+instance {-# OVERLAPS #-} HasFixedBitSize a => GOffset name (S1 m (K1 c a)) where
+  offset _ _ = Left $ fixedBitSize @a
   {-# INLINE offset #-}
 
 instance (HasField (name :: Symbol) a x, GOffset name (Rep a), AsRep rep x) => HasField name (Bitfield rep a) x where
@@ -162,10 +164,32 @@ instance (HasField (name :: Symbol) a x, GOffset name (Rep a), AsRep rep x) => H
         Right n -> n
   {-# INLINE getField #-}
 
+-- | Types with a fixed bitsize. This could be a type family as well, but having
+-- it as a typeclass provides nicer error messages when one forgets to write an
+-- instance for it.
+class KnownNat (BitSize a) => HasFixedBitSize (a :: Type) where
+  type BitSize a :: Nat
+
+fixedBitSize :: forall a. HasFixedBitSize a => Int
+fixedBitSize = fromIntegral $ natVal (Proxy @(BitSize a))
+
 -- | Typeclass which converts @rep@ and @a@ into each other (at specified offsets).
-class AsRep rep a where
+class HasFixedBitSize a => AsRep rep a where
   fromRep :: rep -> Int -> a
   toRep :: rep -> a -> Int -> rep
+
+-- Flatten nested bitfields
+instance KnownNat (BitSize r2) => HasFixedBitSize (Bitfield r2 a) where
+  type BitSize (Bitfield r2 a) = BitSize r2
+
+instance AsRep r1 r2 => AsRep r1 (Bitfield r2 a) where
+  fromRep r1 off = Bitfield $ fromRep r1 off
+  {-# INLINE fromRep #-}
+  toRep r1 (Bitfield r2) off = toRep r1 r2 off
+  {-# INLINE toRep #-}
+
+instance HasFixedBitSize Bool where
+  type BitSize Bool = 1 
 
 instance Bits a => AsRep a Bool where
   fromRep r off = testBit r off
@@ -175,50 +199,94 @@ instance Bits a => AsRep a Bool where
   {-# INLINE toRep #-}
 
 -- | Newtype wrapper with an 'AsRep' instance for 'Integral' representations and types.
-newtype ViaIntegral a = ViaIntegral a
+--
+-- The example below shows how to derive a 5 bit int field via a newtype:
+-- 
+-- @
+-- newtype SmallInt = SmallInt Int
+--   deriving (HasFixedBitSize, AsRep r) via (ViaIntegral 5 Int)
+-- @
+newtype ViaIntegral (sz :: Nat) a = ViaIntegral a
   deriving newtype (Eq, Ord, Bits, Real, Enum, Num, Integral)
 
-instance (Bits a, Integral a, FiniteBits n, Integral n) => AsRep a (ViaIntegral n) where
+instance KnownNat sz => HasFixedBitSize (ViaIntegral sz n) where
+  type BitSize (ViaIntegral sz n) = sz
+
+instance (Bits a, Integral a, Bits n, Integral n, KnownNat sz) => AsRep a (ViaIntegral sz n) where
   fromRep r off = mask .&. (fromIntegral $ unsafeShiftR r off)
     where
-      mask = (unsafeShiftL (bit 0) (finiteBitSize (undefined :: n))) - 1
+      mask = (unsafeShiftL (bit 0) (fixedBitSize @(ViaIntegral sz n))) - 1
   {-# INLINE fromRep #-}
   toRep rep n off = (mask .&. rep) .|. (unsafeShiftL (fromIntegral n) off)
     where
-      mask = complement $ unsafeShiftL ((unsafeShiftL (bit 0) (finiteBitSize (undefined :: n))) - 1) off
+      mask = complement $ unsafeShiftL ((unsafeShiftL (bit 0) (fixedBitSize @(ViaIntegral sz n))) - 1) off
   {-# INLINE toRep #-}
 
-deriving via (ViaIntegral Int8 ) instance (Bits r, Integral r) => AsRep r Int8
-deriving via (ViaIntegral Int16) instance (Bits r, Integral r) => AsRep r Int16
-deriving via (ViaIntegral Int32) instance (Bits r, Integral r) => AsRep r Int32
-deriving via (ViaIntegral Int64) instance (Bits r, Integral r) => AsRep r Int64
-deriving via (ViaIntegral Int  ) instance (Bits r, Integral r) => AsRep r Int
+instance HasFixedBitSize Int8  where type BitSize Int8  = 8
+instance HasFixedBitSize Int16 where type BitSize Int16 = 16
+instance HasFixedBitSize Int32 where type BitSize Int32 = 32
+instance HasFixedBitSize Int64 where type BitSize Int64 = 64
 
-deriving via (ViaIntegral Word8 ) instance (Bits r, Integral r) => AsRep r Word8
-deriving via (ViaIntegral Word16) instance (Bits r, Integral r) => AsRep r Word16
-deriving via (ViaIntegral Word32) instance (Bits r, Integral r) => AsRep r Word32
-deriving via (ViaIntegral Word64) instance (Bits r, Integral r) => AsRep r Word64
-deriving via (ViaIntegral Word  ) instance (Bits r, Integral r) => AsRep r Word
+instance HasFixedBitSize Int where type BitSize Int = SIZEOF_HSINT Nat.* 8
 
--- | Type level information about the bitsize of elements
+instance HasFixedBitSize Word8  where type BitSize Word8  = 8
+instance HasFixedBitSize Word16 where type BitSize Word16 = 16
+instance HasFixedBitSize Word32 where type BitSize Word32 = 32
+instance HasFixedBitSize Word64 where type BitSize Word64 = 64
+
+instance HasFixedBitSize Word where type BitSize Word = SIZEOF_HSINT Nat.* 8
+
+deriving via (ViaIntegral 8  Int8 ) instance (Bits r, Integral r) => AsRep r Int8
+deriving via (ViaIntegral 16 Int16) instance (Bits r, Integral r) => AsRep r Int16
+deriving via (ViaIntegral 32 Int32) instance (Bits r, Integral r) => AsRep r Int32
+deriving via (ViaIntegral 64 Int64) instance (Bits r, Integral r) => AsRep r Int64
+
+deriving via (ViaIntegral (SIZEOF_HSINT Nat.* 8) Int) instance (Bits r, Integral r) => AsRep r Int
+
+deriving via (ViaIntegral 8  Word8 ) instance (Bits r, Integral r) => AsRep r Word8
+deriving via (ViaIntegral 16 Word16) instance (Bits r, Integral r) => AsRep r Word16
+deriving via (ViaIntegral 32 Word32) instance (Bits r, Integral r) => AsRep r Word32
+deriving via (ViaIntegral 64 Word64) instance (Bits r, Integral r) => AsRep r Word64
+
+deriving via (ViaIntegral (SIZEOF_HSINT Nat.* 8) Word) instance (Bits r, Integral r) => AsRep r Word
+
+-- | Deriving via helper for 'Enum' types. Requires that type to also have an instance of 'Generic'.
 --
--- Used to verify that a datatype fits into a representation, which guarantees safe access to fields.
-type family BitSize (a :: Type) :: Nat
+-- @
+-- data AEnum = A1 | A2 | A3
+--   deriving stock (Enum, Generic)
+--   deriving (HasFixedBitSize, AsRep r) via (GenericEnum AEnum)
+-- @
+newtype GenericEnum a = GenericEnum a
+  deriving newtype Eq
 
-type instance BitSize Int8  = 8
-type instance BitSize Int16 = 16
-type instance BitSize Int32 = 32
-type instance BitSize Int64 = 64
+instance KnownNat (RoundUpLog2 (EnumSz (Rep a))) => HasFixedBitSize (GenericEnum a) where
+  type BitSize (GenericEnum a) = RoundUpLog2 (EnumSz (Rep a))
 
-type instance BitSize Word8  = 8
-type instance BitSize Word16 = 16
-type instance BitSize Word32 = 32
-type instance BitSize Word64 = 64
+instance (Generic a, Enum a, Bits rep, Integral rep, KnownNat (RoundUpLog2 (EnumSz (Rep a)))) => AsRep rep (GenericEnum a) where
+  fromRep rep off =
+    let ViaIntegral i = fromRep @rep @(ViaIntegral (BitSize (GenericEnum a)) Int) rep off
+    in GenericEnum $ toEnum i
+  {-# INLINE fromRep #-}
+  toRep rep (GenericEnum x) off =
+    let x' = ViaIntegral @(BitSize (GenericEnum a)) $ fromEnum x
+    in toRep rep x' off
+  {-# INLINE toRep #-}
 
-type instance BitSize Bool = 1
+-- Ugly way to check if we need to round up. Basically if he 2^log2(sz) /= sz then sz is not a power of two and was rounded down in log2.
+type family RoundUpLog2 (sz :: Nat) :: Nat where
+  RoundUpLog2 sz = RoundUpLog2' sz (2 ^ (Log2 sz)) (Log2 sz)
 
-type instance BitSize Int  = SIZEOF_HSINT Nat.* 8
-type instance BitSize Word = SIZEOF_HSINT Nat.* 8
+type family RoundUpLog2' (sz :: Nat) (sz' :: Nat) (log2 :: Nat) :: Nat where
+  RoundUpLog2' sz sz log2 = log2
+  RoundUpLog2' sz sz' log2 = log2 + 1
+
+type family EnumSz (f :: p -> Type) :: Nat where
+  EnumSz (M1 i s f) = EnumSz f
+  EnumSz (f :+: g) = EnumSz f + EnumSz g
+  EnumSz U1 = 1
+  EnumSz (f :*: g) = TypeError (Text "Deriving a generic AsRep instance only supports sum types with empty constructors")
+  EnumSz (K1 c a)  = TypeError (Text "Deriving a generic AsRep instance only supports sum types with empty constructors")
 
 type family ReqSz (f :: p -> Type) :: Nat where
   ReqSz (M1 i s f) = ReqSz f

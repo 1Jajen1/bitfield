@@ -28,18 +28,32 @@ x = pack $ Example 5 False True
 
 `x` is represented using `Word16` instead of `Example` and thus takes far less memory.
 
-## Fixing the size with `Data.Width`
+## Custom fields
+
+There are two important typeclasses for working with types in bitfields: `AsRep` and `HasFixedBitSize`.
+
+The most common way to use them is to derive them via either an underlying `Enum` or `Integral` instance.
+
+#### Via `Enum`
 
 ```haskell
-import Data.Bitfield
-import Data.Width
-
-data Example = Example { one :: Width 3 Int, two :: Width 5 Int }
-
-x :: Bitfield Word8 Example
+data AEnum = A1 | A2 | A3
+  deriving stock (Generic, Enum)
+  deriving (HasFixedBitSize, AsRep rep) via (GenericEnum AEnum)
 ```
 
-This bitfield will be represented by a single byte, giving `one` 3 bits and `two` 5.
+This still requires a `Generic` instance to count the constructors of `AEnum` for the `HasFixedBitSize` instance. The resulting field has a size of `Log2 NumConstructors` rounded up (`2` bits for `AEnum`). The actual value will be constructed using the `Enum` instance, so unless that is derived, the constructor order won't matter.
+
+#### Via `Integral`
+
+```haskell
+newtype SmallInt = UnsafeSmallInt Int
+  deriving (HasFixedBitSize, AsRep rep) via (ViaIntegral 5 Int)
+```
+
+This creates a `HasFixedBitSize` instance with a fixed bit size of `5` and a `AsRep` instance which reads and writes `5` bit values.
+
+Note: The value is not truncated nor is it otherwise checked that the underlying value actually fits into the specified bit size. If it is too large it will write over other values!
 
 ## Type safety
 
