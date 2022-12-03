@@ -4,11 +4,11 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE CPP #-}
-#if __GLASGOW_HASKELL__ >= 902
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+#if __GLASGOW_HASKELL__ >= 902
+{-# LANGUAGE OverloadedRecordDot #-}
 #endif
 module BitfieldSpec where
 
