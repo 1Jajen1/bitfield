@@ -45,7 +45,7 @@ test-suite bitfield-test
   main-is:             Spec.hs
   build-tool-depends:  sydtest-discover:sydtest-discover
   build-depends:       bitfield
-                     , sydtest >= 0.12
+                     , sydtest
                      , validity
                      , genvalidity
                      , genvalidity-sydtest
