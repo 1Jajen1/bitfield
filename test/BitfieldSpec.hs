@@ -1,9 +1,12 @@
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ >= 902
+{-# LANGUAGE OverloadedRecordDot #-}
+#endif
 module BitfieldSpec where
 
 import Test.Syd
@@ -34,6 +37,11 @@ spec = do
     (Bitfield.unwrap t3) `shouldBe` (unsafeShiftL 1 25)
     (Bitfield.unwrap t4) `shouldBe` 25
 
+  it "get @name b == name (unpack b)" $ forAllValid $ \(t :: Example) ->
+    let bf = Bitfield.pack @Word32 t
+    in get @"d" bf === d t
+
+#if __GLASGOW_HASKELL__ >= 902
   it "get @name b == b.name" $ forAllValid $ \(t :: Example) ->
     let bf = Bitfield.pack @Word32 t
     in get @"d" bf === bf.d
@@ -41,6 +49,7 @@ spec = do
   it "get @name b == (unpack b).name" $ forAllValid $ \(t :: Example) ->
     let bf = Bitfield.pack @Word32 t
     in (get @"b" bf === (unpack bf).b)
+#endif
   
   it "get @name (set @name b x) == x" $ forAllValid $ \(t :: Example, x :: Word16) ->
     x === Bitfield.get @"c" (Bitfield.set @"c" (Bitfield.pack @Word32 t) x)
