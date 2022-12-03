@@ -17,14 +17,14 @@
 , StandaloneDeriving
 , DerivingVia
 , CPP
+, ConstraintKinds
+, DefaultSignatures
 #-}
 {-# OPTIONS_GHC
   -Wno-unticked-promoted-constructors
   -Wno-redundant-constraints
 #-}
 {-# OPTIONS_HADDOCK not-home #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DefaultSignatures #-}
 -- |
 -- Module      : Data.Bitfield.Internal
 -- Copyright   : (c) Jannis Overesch 2022-2022
@@ -207,8 +207,8 @@ newtype ViaIntegral (sz :: Nat) a = ViaIntegral a
 instance KnownNat sz => HasFixedBitSize (ViaIntegral sz n) where
   type BitSize (ViaIntegral sz n) = sz
 
-instance (Bits a, Integral a, Bits n, Integral n, KnownNat sz) => AsRep a (ViaIntegral sz n) where
-  fromRep r off = mask .&. (fromIntegral $ unsafeShiftR r off)
+instance (Bits a, Integral a, Integral n, KnownNat sz) => AsRep a (ViaIntegral sz n) where
+  fromRep r off = fromIntegral $ mask .&. (unsafeShiftR r off)
     where
       mask = (unsafeShiftL (bit 0) (fixedBitSize @(ViaIntegral sz n))) - 1
   {-# INLINE fromRep #-}
