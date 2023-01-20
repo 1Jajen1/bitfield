@@ -53,6 +53,7 @@ import Data.Word
 import GHC.Generics
 import GHC.Records
 import GHC.TypeLits as Nat
+import Foreign.Storable
 
 -- | A generic Bitfield
 -- 
@@ -65,7 +66,7 @@ import GHC.TypeLits as Nat
 -- @a@'s fields are also required to have an instance of 'AsRep' and 'FiniteBits'. This is provided for the most common
 -- types ('Int'/'Word' (and variants) and 'Bool'). 
 newtype Bitfield (rep :: Type) (a :: Type) = Bitfield rep
-  deriving newtype Eq
+  deriving newtype (Eq, Storable)
 
 -- | Access the underlying representation of the 'Bitfield'
 unwrap :: Bitfield rep a -> rep

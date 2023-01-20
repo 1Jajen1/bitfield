@@ -2,7 +2,7 @@
 
 <p align="center">
 <a href="https://github.com/1Jajen1/bitfield/actions">
-  <img src="https://img.shields.io/github/workflow/status/1Jajen1/bitfield/CI?style=flat-square" alt="CI badge" />
+  <img src="https://img.shields.io/github/actions/workflow/status/1Jajen1/bitfield/ci.yml?branch=main" alt="CI badge" />
 </a>
 <a href="https://haskell.org">
   <img src="https://img.shields.io/badge/Made%20in-Haskell-%235e5086?logo=haskell&style=flat-square" alt="made with Haskell"/>
