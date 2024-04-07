@@ -1,6 +1,6 @@
 cabal-version:       2.4
 name:                bitfield
-version:             0.0.0.0
+version:             0.0.0.1
 synopsis:            Generic and easy to use haskell bitfields
 description:         Generic and easy to use haskell bitfields. Allows packing and modifying datatypes in a compact representation. See `README.md` or 'Data.Bitfield' for documentation.
 license:             MIT
@@ -46,7 +46,7 @@ test-suite bitfield-test
   main-is:             Spec.hs
   build-tool-depends:  sydtest-discover:sydtest-discover
   build-depends:       bitfield
-                     , sydtest >= 0.12 && < 0.14
+                     , sydtest >= 0.12 && < 0.16
                      , validity >= 0.12 && < 0.13
                      , genvalidity >= 1.0 && < 1.2
                      , genvalidity-sydtest >= 1.0 && < 1.1
