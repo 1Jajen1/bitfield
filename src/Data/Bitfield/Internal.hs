@@ -66,7 +66,7 @@ import Foreign.Storable
 -- @a@'s fields are also required to have an instance of 'AsRep' and 'FiniteBits'. This is provided for the most common
 -- types ('Int'/'Word' (and variants) and 'Bool'). 
 newtype Bitfield (rep :: Type) (a :: Type) = Bitfield rep
-  deriving newtype (Eq, Storable)
+  deriving newtype (Eq, Ord, Storable)
 
 -- | Access the underlying representation of the 'Bitfield'
 unwrap :: Bitfield rep a -> rep
@@ -97,7 +97,7 @@ unpack (Bitfield b) = case unpackI (Proxy @(Rep a)) 0 b of (_, a) -> to a
 -- Beware that updates should be done with 'set', as 'pack' will recreate the entire 'Bitfield'
 -- from scratch. The following will most likely *not* be optimised: @pack $ (unpack bitfield) { example = True }@
 pack :: forall rep a . (Fits rep a, Generic a, Bits rep, GPackBitfield rep (Rep a)) => a -> Bitfield rep a
-pack a = case packI (Proxy @(Rep a)) 0 zeroBits (from a) of (_, b) -> Bitfield b
+pack a = case packI (Proxy @(Rep a)) 0 (zeroBits :: rep) (from a) of (_, b) -> Bitfield b
 {-# INLINE pack #-}
 
 instance (Fits rep a, Generic a, GPackBitfield rep (Rep a), Show a) => Show (Bitfield rep a) where
